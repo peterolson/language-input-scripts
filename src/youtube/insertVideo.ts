@@ -3,6 +3,7 @@ import { YoutubeVideoSummary, YoutubeCaptions } from "../types/youtube.types";
 import fetch from "node-fetch";
 import { Db } from "mongodb";
 import { ContentItem } from "../types/content.types";
+import { charInCJK } from "../util/util";
 
 export async function insertYoutubeVideo(
   lang: string,
@@ -30,6 +31,7 @@ export async function insertYoutubeVideo(
     throw new Error("Timings and parsed text don't match");
   }
   const lemmaSet = new Set<string>();
+  const tradLemmaSet = new Set<string>();
   let wordCount = 0;
   for (const line of parsedText.lines) {
     for (const sentence of line.sentences) {
@@ -37,6 +39,18 @@ export async function insertYoutubeVideo(
         if (token.isWord) {
           wordCount++;
           if (token.lemma) lemmaSet.add(token.lemma.toLowerCase());
+          if (lang === "zh") {
+            const chars = [...token.text].filter(charInCJK);
+            const tradChars = [...(token.tradText || token.text)].filter(
+              charInCJK
+            );
+            for (const char of chars) {
+              lemmaSet.add(char);
+            }
+            for (const char of tradChars) {
+              tradLemmaSet.add(char);
+            }
+          }
         }
       }
     }
@@ -51,6 +65,10 @@ export async function insertYoutubeVideo(
     lemmas: Array.from(lemmaSet),
     wordCount,
   };
+
+  if (lang === "zh") {
+    item.tradLemmas = Array.from(tradLemmaSet);
+  }
 
   const contentCollection = db.collection("content");
   await contentCollection.updateOne(
