@@ -1,6 +1,7 @@
 import youtubedl from "youtube-dl-exec";
 import fetch from "node-fetch";
 import { YoutubeCaptions } from "../types/youtube.types";
+import { simplify } from "hanzi-tools";
 
 export async function getCaptions(
   youtubeURL: string,
@@ -15,11 +16,17 @@ export async function getCaptions(
   if (!subtitles) return null;
   const lang = Object.keys(subtitles).filter((x) => x.startsWith(language))[0];
   if (!lang) return null;
-  const captionURL = subtitles[lang].filter((x) => x.ext === "vtt")?.[0]?.url;
+  const caption = subtitles[lang].filter((x) => x.ext === "vtt")?.[0];
+  const captionURL = caption?.url;
   if (!captionURL) return null;
   const vtt = await downloadVTT(captionURL);
   if (!vtt) return null;
   const captions = parseVTT(vtt);
+  if (["zh-tw", "zh-hant"].includes(lang.toLowerCase())) {
+    for (const caption of captions) {
+      caption.text = simplify(caption.text);
+    }
+  }
   return { duration, captions };
 }
 
@@ -36,10 +43,15 @@ function parseVTT(vtt: string) {
   const parsed = parts
     .filter(Boolean)
     .map((part) => {
-      const lines = part.split("\n");
+      let lines = part.split("\n");
+      if (lines[1].includes("-->") && lines[1].includes(":")) {
+        lines = lines.slice(1);
+      }
       const time = lines[0].split(" --> ");
       const start = time[0].split(":").map((x) => +x);
-      const end = time[1].split(":").map((x) => +x);
+      const end = time[1].split(":").map((x) => +x.replace(/[^0-9.]/g, ""));
+      if (start.some(isNaN) || end.some(isNaN))
+        throw new Error("Invalid subtitle timing");
       const text = lines.slice(1).join(" ");
       return {
         start: start.reduce((a, b) => a * 60 + b, 0),
@@ -47,6 +59,6 @@ function parseVTT(vtt: string) {
         text,
       };
     })
-    .filter((x) => x.text.trim().length > 0);
+    .filter((x) => x.text.trim().replace(/\n/g, " ").length > 0);
   return parsed;
 }

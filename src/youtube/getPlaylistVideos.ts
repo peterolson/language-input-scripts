@@ -18,17 +18,21 @@ export async function getPlaylistVideos(
     playlistItems = playlistItems.concat(items);
     pageToken = nextPageToken;
   } while (pageToken);
-  return playlistItems.map((item) => ({
-    title: item.snippet.title,
-    thumb: item.snippet.thumbnails.medium.url,
-    media: {
-      type: "youtube",
-      youtubeId: item.contentDetails.videoId,
-    },
-    url: `https://www.youtube.com/watch?v=${item.contentDetails.videoId}`,
-    publishedDate: new Date(item.contentDetails.videoPublishedAt),
-    channel: item.snippet.channelTitle,
-  }));
+  return playlistItems
+    .filter((item) => item?.snippet?.thumbnails?.medium)
+    .map((item) => {
+      return {
+        title: item.snippet.title,
+        thumb: item.snippet.thumbnails.medium.url,
+        media: {
+          type: "youtube",
+          youtubeId: item.contentDetails.videoId,
+        },
+        url: `https://www.youtube.com/watch?v=${item.contentDetails.videoId}`,
+        publishedDate: new Date(item.contentDetails.videoPublishedAt),
+        channel: item.snippet.channelTitle,
+      };
+    });
 }
 
 async function fetchPlaylistItems(

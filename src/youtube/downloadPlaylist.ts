@@ -22,7 +22,7 @@ export async function downloadPlaylist(
         continue;
       }
       console.log("Inserting", video.url);
-      await insertYoutubeVideo(language, video, captionData, db);
+      //await insertYoutubeVideo(language, video, captionData, db);
     } catch (e) {
       console.log("Could not insert. Skipping...", e);
       skipped++;

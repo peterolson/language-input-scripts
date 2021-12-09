@@ -4,12 +4,15 @@ import fetch from "node-fetch";
 import { Db } from "mongodb";
 import { ContentItem } from "../types/content.types";
 import { charInCJK } from "../util/util";
+import { existsSync, fstat, readFileSync, writeFileSync } from "fs";
+
+let j = 0;
 
 export async function insertYoutubeVideo(
   lang: string,
   summary: YoutubeVideoSummary,
-  captionData: YoutubeCaptions,
-  db: Db
+  captionData: YoutubeCaptions
+  // db: Db
 ) {
   const { duration, captions } = captionData;
   if (duration < 60) {
@@ -70,6 +73,15 @@ export async function insertYoutubeVideo(
     item.tradLemmas = Array.from(tradLemmaSet);
   }
 
+  const fileName = `video_data/${lang}_${++j % 50}.json`;
+
+  const file = existsSync(fileName)
+    ? JSON.parse(String(readFileSync(fileName)))
+    : {};
+  file[item.url] = item;
+  writeFileSync(fileName, JSON.stringify(file, null, 2));
+
+  /*
   const contentCollection = db.collection("content");
   await contentCollection.updateOne(
     {
@@ -79,7 +91,7 @@ export async function insertYoutubeVideo(
       $set: item,
     },
     { upsert: true }
-  );
+  );*/
 }
 
 export async function parseText(
